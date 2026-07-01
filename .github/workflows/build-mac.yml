@@ -31,8 +31,10 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
       - name: Upload DMG
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: mac-dmg
           path: dist/*.dmg
           retention-days: 30
+
+
