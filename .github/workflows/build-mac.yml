@@ -32,6 +32,7 @@ jobs:
         with:
           name: frame-measurement-mac
           path: dist/*.dmg
-          if-no-files-found: warn        # ← 新增这行
+          if-no-files-found: warn
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # ← 新增这个env块
+         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
