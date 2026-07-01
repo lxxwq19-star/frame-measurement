@@ -1,0 +1,10 @@
+node_modules/
+dist/
+*.zip
+.DS_Store
+
+# 打包输出目录
+相框测量工具_v*/
+使用教程.html
+clipboard-*.png
+package-lock.json

@@ -1,0 +1,1426 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>相框测量工具</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;height:100vh;display:flex;flex-direction:column;background:#f0f0f0}
+#toolbar{display:flex;gap:8px;padding:10px 20px;background:white;border-bottom:1px solid #d0d0d0;align-items:center;flex-wrap:wrap;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+button{padding:7px 14px;border:1px solid #ccc;border-radius:6px;background:#fff;cursor:pointer;font-size:13px;transition:all .15s}
+button:hover{background:#e8e8e8}
+button.active{background:#0071e3;color:white;border-color:#0071e3}
+#canvasBox{flex:1;position:relative;overflow:hidden;background:#e8e8e8}
+canvas{position:absolute;top:0;left:0}
+#info{padding:8px 20px;background:white;border-top:1px solid #ccc;font-size:12px;color:#888;display:flex;justify-content:space-between}
+#measPanel{position:absolute;top:10px;right:10px;width:260px;max-height:85vh;overflow-y:auto;background:white;border-radius:10px;padding:14px;box-shadow:0 4px 20px rgba(0,0,0,.18);font-size:13px;z-index:10}
+.meas-item{padding:7px 0;border-bottom:1px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center;gap:6px}
+.meas-del{background:#ff3b30;color:white;border:none;width:22px;height:22px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:transform .1s}
+.meas-ref{background:none;border:1px solid #ccc;border-radius:6px;width:22px;height:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px;transition:all .15s}
+.meas-ref:hover{background:#f0f0f0}
+.meas-ref.has-ref{background:#0071e3;border-color:#0071e3;color:white}
+.meas-del:hover{transform:scale(1.15)}
+.meas-del::before{content:'×';font-size:15px;font-weight:bold;color:white}
+.meas-color{width:22px;height:22px;border:2px solid #ddd;border-radius:6px;cursor:pointer;flex-shrink:0;padding:0;transition:border-color .15s}
+.meas-color:hover{border-color:#0071e3}
+.meas-color:hover{border-color:#0071e3}
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:999;align-items:center;justify-content:center}
+.modal.show{display:flex}
+.modal-box{background:white;padding:28px 32px;border-radius:14px;min-width:340px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.size-option{padding:12px 16px;border:2px solid #e0e0e0;margin:8px 0;cursor:pointer;border-radius:8px;transition:all .15s;font-size:14px}
+.size-option:hover{border-color:#0071e3;background:#f0f5ff}
+.size-option.selected{border-color:#0071e3;background:#e8f0fe;font-weight:600}
+#stepHint{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.78);color:white;padding:10px 22px;border-radius:20px;font-size:13px;pointer-events:none;white-space:nowrap;z-index:20}
+
+/* 自定义尺寸区域 */
+.custom-size-section{margin-top:14px;padding-top:14px;border-top:1px solid #eee}
+.custom-size-section .section-title{font-size:13px;color:#666;margin-bottom:8px;font-weight:600}
+.custom-size-inputs{display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap}
+.custom-size-inputs input{width:72px;padding:6px 8px;border:1px solid #ccc;border-radius:6px;font-size:13px;text-align:center}
+.custom-size-inputs span{color:#888;font-size:13px}
+.custom-size-btn{padding:7px 14px;background:#0071e3;color:white;border:none;border-radius:6px;cursor:pointer;font-size:13px;transition:background .15s}
+.custom-size-btn:hover{background:#005ecb}
+
+/* 字体大小滑块 */
+.font-size-section{margin-top:14px;padding-top:14px;border-top:1px solid #eee}
+.font-size-section .section-title{font-size:13px;color:#666;margin-bottom:8px;font-weight:600;display:flex;justify-content:space-between;align-items:center}
+.font-size-section input[type=range]{width:100%;accent-color:#0071e3;margin:4px 0}
+.font-size-section .size-val{font-weight:700;color:#0071e3;font-size:13px}
+
+/* 颜色设置 */
+.color-section{margin-top:14px;padding-top:14px;border-top:1px solid #eee}
+.color-section .section-title{font-size:13px;color:#666;margin-bottom:8px;font-weight:600}
+
+/* 内嵌取色板 */
+.color-picker-wrap{position:relative;margin-bottom:8px}
+.color-picker-btn{display:flex;align-items:center;gap:8px;padding:6px 10px;border:2px solid #ddd;border-radius:8px;cursor:pointer;background:white;transition:border-color .15s}
+.color-picker-btn:hover{border-color:#0071e3}
+.color-picker-btn .color-preview{width:28px;height:28px;border-radius:6px;border:1px solid rgba(0,0,0,.1)}
+.color-picker-btn .color-label{font-size:12px;color:#888;flex:1}
+
+.color-panel{display:none;position:fixed;padding:12px;background:white;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.22);z-index:9999;min-width:220px}
+.color-panel.show{display:block}
+
+.color-presets{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:12px}
+.color-preset-item{width:100%;aspect-ratio:1;border:2px solid #eee;border-radius:6px;cursor:pointer;transition:all .15s;position:relative}
+.color-preset-item:hover{transform:scale(1.15);border-color:#0071e3}
+.color-preset-item.active{border-color:#0071e3;border-width:3px}
+.color-preset-item .check{display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:white;text-shadow:0 1px 2px rgba(0,0,0,.3);font-size:10px}
+.color-preset-item.active .check{display:block}
+
+.color-custom-row{display:flex;align-items:center;gap:8px;padding-top:10px;border-top:1px solid #eee}
+.color-custom-row label{font-size:11px;color:#888;white-space:nowrap}
+.color-custom-row input[type=color]{width:32px;height:26px;border:1px solid #ddd;border-radius:4px;cursor:pointer;padding:1px}
+
+.meas-info{display:flex;align-items:center;gap:6px;flex:1;min-width:0}
+.meas-info .meas-val{font-weight:600;font-size:13px;white-space:nowrap}
+.meas-checkbox{width:16px;height:16px;cursor:pointer;flex-shrink:0;accent-color:#0071e3}
+
+.meas-info{display:flex;align-items:center;gap:6px;flex:1;min-width:0}
+.meas-info .meas-val{font-weight:600;font-size:13px;white-space:nowrap}
+.meas-checkbox{width:16px;height:16px;cursor:pointer;flex-shrink:0;accent-color:#0071e3}
+</style>
+</head>
+<body>
+
+<div id="toolbar">
+    <button onclick="uploadImg()">📷 上传图片</button>
+    <input type="file" id="fileInput" accept="image/*" style="display:none" onchange="onFile(this.files[0])">
+    <span style="width:1px;height:24px;background:#ddd;margin:0 4px"></span>
+    <button id="btnDraw" onclick="setMode('draw')">⬜ 绘制内框</button>
+    <button id="btnEdge" onclick="setMode('edge')">↔️ 调整边距</button>
+    <button id="btnMeasure" onclick="setMode('measure')">📏 测量</button>
+    <span style="width:1px;height:24px;background:#ddd;margin:0 4px"></span>
+    <button onclick="undo()">↩️ 撤销</button>
+    <button onclick="clearAll()">🗑️ 清除</button>
+    <button onclick="doExport()">📋 导出</button>
+    <span style="width:1px;height:24px;background:#ddd;margin:0 4px"></span>
+    <button id="btnUnit" onclick="toggleUnit()" style="font-weight:600;min-width:50px">cm</button>
+    <span style="flex:1"></span>
+    <span id="statusText" style="color:#555">请上传相框照片</span>
+</div>
+
+<div id="canvasBox">
+    <canvas id="cv"></canvas>
+    <div id="measPanel">
+        <div style="font-weight:700;margin-bottom:12px;font-size:14px">📐 测量数据</div>
+        <div id="measList"><div style="color:#aaa;text-align:center;padding:24px 0;font-size:12px;line-height:1.8">拖拽尺子测量<br>数据将显示在此</div></div>
+        <!-- 标注字体大小滑块 -->
+        <div class="font-size-section">
+            <div class="section-title">
+                <span>🔤 标注字体大小</span>
+                <span class="size-val" id="fontSizeVal">40px</span>
+            </div>
+            <input type="range" id="fontSizeSlider" min="20" max="200" value="40" oninput="onFontSizeChange(this.value)">
+        </div>
+        <!-- 标注颜色设置 -->
+        <div class="color-section">
+            <div class="section-title">🎨 标注颜色</div>
+            <!-- 统一颜色取色板 -->
+            <div class="color-picker-wrap" id="globalPickerWrap">
+                <div class="color-picker-btn" onclick="toggleColorPanel('global')">
+                    <div class="color-preview" id="globalColorPreview" style="background:#ff3b30"></div>
+                    <span class="color-label">统一颜色</span>
+                </div>
+                <div class="color-panel" id="globalColorPanel">
+                    <div class="color-presets" id="globalPresets"></div>
+                    <div class="color-custom-row">
+                        <label>自定义</label>
+                        <input type="color" value="#ff3b30" onchange="setGlobalColorFromNative(this.value, 'global')">
+                    </div>
+                </div>
+            </div>
+            <!-- 选中颜色取色板 -->
+            <div class="color-picker-wrap" id="selectedPickerWrap" style="margin-top:6px">
+                <div class="color-picker-btn" onclick="toggleColorPanel('selected')">
+                    <div class="color-preview" id="selectedColorPreview" style="background:#ff3b30"></div>
+                    <span class="color-label">选中颜色</span>
+                </div>
+                <div class="color-panel" id="selectedColorPanel">
+                    <div class="color-presets" id="selectedPresets"></div>
+                    <div class="color-custom-row">
+                        <label>自定义</label>
+                        <input type="color" value="#ff3b30" onchange="setSelectedColorFromNative(this.value)">
+                    </div>
+                </div>
+            </div>
+            <div style="font-size:11px;color:#aaa;margin-top:6px">勾选测量线后点「应用选中」｜📌 图钉切换参考虚线</div>
+        </div>
+    </div>
+    <div id="stepHint" style="display:none"></div>
+</div>
+
+<div id="info">
+    <span>🖱️ 滚轮缩放 · 右键/Alt+左键 平移 · Ctrl+Z 撤销 · 测量模式下点击测量线可移动</span>
+    <span id="zoomText">100%</span>
+</div>
+
+<div id="sizeModal" class="modal">
+    <div class="modal-box">
+        <h3 style="margin-bottom:6px">选择相框型号</h3>
+        <p style="color:#888;font-size:13px;margin-bottom:16px">内框尺寸已标定，请选择匹配的型号：</p>
+        <div id="sizeList"></div>
+        <!-- 自定义尺寸 -->
+        <div class="custom-size-section">
+            <div class="section-title">自定义尺寸</div>
+            <div class="custom-size-inputs">
+                <input type="number" id="customW" placeholder="宽" step="0.1" min="0.1">
+                <span>×</span>
+                <input type="number" id="customH" placeholder="高" step="0.1" min="0.1">
+                <span>cm</span>
+                <button class="custom-size-btn" onclick="selectCustomSize()">确认</button>
+            </div>
+        </div>
+        <div style="margin-top:16px;text-align:right">
+            <button onclick="closeSizeModal()" style="border-color:#aaa;color:#666">取消</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// ============ 全局变量 ============
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+const box = document.getElementById('canvasBox');
+
+let img = null;
+let S = 1, ox = 0, oy = 0;
+let mode = 'none';
+let rect = null;
+let edgeDrag = -1;
+let isPan = false, panSX, panSY;
+let meas = [];
+let nextId = 1;
+let rulerS = null, drawingRuler = false, rulerE = null;
+let ppm = 0;
+let selSizeName = '';
+let selSizeCm = '';
+let selSizeSubLabel = '';
+let undoStack = [];
+let mouseX = 0, mouseY = 0;
+let drawStart = null;
+let drawPreview = null;
+let unit = 'cm';
+let shiftDown = false;
+// labelFontSize 现为「图片像素」单位，导出和画布使用同一数值
+let labelFontSize = 40;
+// 多选
+let selectedMeas = new Set();
+
+const COLOR_CYCLE = ['#ff3b30','#34c759','#ff9500','#5856d6','#00c7be','#af52de'];
+
+const SIZE_DB = [
+    {n:'8×10',   w:19.7, h:24.8},
+    {n:'6×8',    w:14.1, h:19.7},
+    {n:'5×7',    w:12.1, h:17.2},
+    {n:'4×6',    w:9.5,  h:14.1},
+    {n:'11×14',  w:27.3, h:34.9},
+    {n:'5×5',    w:12.1, h:12.1},
+    {n:'4×4',    w:9.5,  h:9.5},
+    {n:'3.5×5',  w:8.2,  h:12.0},
+    {n:'3×3',    w:7.0,  h:7.0},
+    {n:'2.5×3.5',w:5.8,  h:8.2}
+];
+
+// 常见颜色预设
+const PRESET_COLORS = [
+    {name:'黑', color:'#000000'},
+    {name:'白', color:'#ffffff'},
+    {name:'红', color:'#ff3b30'},
+    {name:'黄', color:'#ffcc00'},
+    {name:'蓝', color:'#0071e3'},
+    {name:'绿', color:'#34c759'},
+    {name:'橙', color:'#ff9500'}
+];
+
+// ============ 初始化 ============
+function init() {
+    resizeCV();
+    window.addEventListener('resize', resizeCV);
+    bindEvt();
+    initColorPresets();
+    updateColorPreview();
+    render();
+}
+
+function resizeCV() {
+    cv.width = box.clientWidth;
+    cv.height = box.clientHeight;
+    render();
+}
+
+// ============ 图片 ============
+function uploadImg() {
+    document.getElementById('fileInput').click();
+}
+
+function onFile(f) {
+    if (!f) return;
+    const r = new FileReader();
+    r.onload = function(e) {
+        img = new Image();
+        img.onload = function() {
+            fitImg();
+            rect = null;
+            meas = [];
+            selSizeName = '';
+            selSizeCm = '';
+            selSizeSubLabel = '';
+            ppm = 0;
+            updateList();
+            setMode('draw');
+            showHint('上传成功！拖拽绘制内框矩形');
+            setStatus('请在内框区域拖拽，绘制矩形');
+        };
+        img.src = e.target.result;
+    };
+    r.readAsDataURL(f);
+}
+
+function fitImg() {
+    if (!img) return;
+    const bw = box.clientWidth, bh = box.clientHeight;
+    const ir = img.width / img.height, br = bw / bh;
+    S = ir > br ? bw / img.width * 0.9 : bh / img.height * 0.9;
+    ox = (bw - img.width * S) / 2;
+    oy = (bh - img.height * S) / 2;
+    updateZoom();
+}
+
+// ============ 坐标转换 ============
+function toImg(e) {
+    const r = cv.getBoundingClientRect();
+    return { x: (e.clientX - r.left - ox) / S, y: (e.clientY - r.top - oy) / S };
+}
+
+// ============ 字体大小 ============
+function onFontSizeChange(val) {
+    labelFontSize = parseInt(val);
+    document.getElementById('fontSizeVal').textContent = val + 'px';
+    render();
+}
+
+// ============ 颜色功能（内嵌取色板） ============
+let activeColorPanel = null;  // 当前打开的取色面板：'global' | 'selected' | null
+
+// 初始化常见颜色网格
+function initColorPresets() {
+    ['globalPresets', 'selectedPresets'].forEach(function(containerId) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        container.innerHTML = PRESET_COLORS.map(function(p) {
+            return '<button class="color-preset-item" style="background:' + p.color + '" title="' + p.name + ' (' + p.color + ')" onclick="selectColorPreset(\'' + p.color + '\', \'' + containerId.replace('Presets', '') + '\')"><span class="check">✓</span></button>';
+        }).join('');
+    });
+}
+
+// 切换取色面板展开/收起（fixed 悬浮定位）
+function toggleColorPanel(which) {
+    const panelId = which === 'global' ? 'globalColorPanel' : 'selectedColorPanel';
+    const panel = document.getElementById(panelId);
+    if (!panel) return;
+
+    if (activeColorPanel === which) {
+        panel.classList.remove('show');
+        activeColorPanel = null;
+    } else {
+        document.querySelectorAll('.color-panel').forEach(function(p) { p.classList.remove('show'); });
+        // 计算 fixed 定位：按钮下方，右对齐防止溢出
+        const btnId = which === 'global' ? 'globalPickerWrap' : 'selectedPickerWrap';
+        const btn = document.getElementById(btnId);
+        const rect = btn.getBoundingClientRect();
+        panel.style.top = (rect.bottom + 6) + 'px';
+        // 右对齐按钮：面板右边缘 = 按钮右边缘
+        panel.style.right = (window.innerWidth - rect.right) + 'px';
+        panel.style.left = 'auto';
+        panel.classList.add('show');
+        activeColorPanel = which;
+    }
+}
+
+// 点击常见颜色
+function selectColorPreset(color, target) {
+    if (target === 'global') {
+        applyGlobalColor(color);
+    } else {
+        applySelectedColor(color);
+    }
+    updateColorPreview();
+    updatePresetActiveState();
+}
+
+// 更新颜色预览方块
+function updateColorPreview() {
+    const globalColor = getCurrentGlobalColor();
+    const selectedColor = getCurrentSelectedColor();
+    const globalPreview = document.getElementById('globalColorPreview');
+    const selectedPreview = document.getElementById('selectedColorPreview');
+    if (globalPreview) globalPreview.style.background = globalColor;
+    if (selectedPreview) selectedPreview.style.background = selectedColor;
+}
+
+// 更新预设按钮的高亮状态
+function updatePresetActiveState() {
+    const globalColor = getCurrentGlobalColor();
+    const selectedColor = getCurrentSelectedColor();
+    
+    document.querySelectorAll('#globalPresets .color-preset-item').forEach(function(btn) {
+        const btnColor = rgbToHex(btn.style.background);
+        btn.classList.toggle('active', btnColor === globalColor);
+    });
+    document.querySelectorAll('#selectedPresets .color-preset-item').forEach(function(btn) {
+        const btnColor = rgbToHex(btn.style.background);
+        btn.classList.toggle('active', btnColor === selectedColor);
+    });
+}
+
+// 获取当前统一颜色（从第一条测量线或默认）
+function getCurrentGlobalColor() {
+    if (meas.length > 0) return meas[0].c;
+    return '#ff3b30';
+}
+
+// 获取当前选中颜色
+function getCurrentSelectedColor() {
+    return document.querySelector('#selectedColorPanel input[type=color]')?.value || '#ff3b30';
+}
+
+// 应用统一颜色（color 为空时自动读取面板取色器当前值）
+function applyGlobalColor(color) {
+    if (!color) {
+        color = document.querySelector('#globalColorPanel input[type=color]')?.value || '#ff3b30';
+    }
+    meas.forEach(function(m) { m.c = color; });
+    // 同步自定义取色器
+    const input = document.querySelector('#globalColorPanel input[type=color]');
+    if (input) input.value = color;
+    updateList();
+    render();
+    setStatus('已应用统一颜色到全部测量线');
+}
+
+// 从原生取色器设置统一颜色
+function setGlobalColorFromNative(color, which) {
+    if (which === 'global') {
+        applyGlobalColor(color);
+    }
+    updateColorPreview();
+    updatePresetActiveState();
+}
+
+// 应用选中颜色（color 为空时自动读取面板取色器当前值）
+function applySelectedColor(color) {
+    if (!selectedMeas.size) { alert('请先勾选测量线'); return; }
+    if (!color) {
+        color = document.querySelector('#selectedColorPanel input[type=color]')?.value || '#ff3b30';
+    }
+    selectedMeas.forEach(function(id) {
+        const m = meas.find(function(x) { return x.id === id; });
+        if (m) m.c = color;
+    });
+    // 同步自定义取色器
+    const input = document.querySelector('#selectedColorPanel input[type=color]');
+    if (input) input.value = color;
+    updateList();
+    render();
+    setStatus('已应用颜色到 ' + selectedMeas.size + ' 条测量线');
+}
+
+// 从原生取色器设置选中颜色
+function setSelectedColorFromNative(color) {
+    applySelectedColor(color);
+    updateColorPreview();
+    updatePresetActiveState();
+}
+
+// 点击空白处收起取色面板
+document.addEventListener('click', function(e) {
+    if (activeColorPanel && !e.target.closest('.color-picker-wrap')) {
+        document.querySelectorAll('.color-panel').forEach(function(p) { p.classList.remove('show'); });
+        activeColorPanel = null;
+    }
+});
+
+function updateList() {
+    const list = document.getElementById('measList');
+    if (!meas.length) {
+        list.innerHTML = '<div style="color:#aaa;text-align:center;padding:24px 0;font-size:12px;line-height:1.8">拖拽尺子测量<br>数据将显示在此</div>';
+        return;
+    }
+    const allSelected = selectedMeas.size === meas.length && meas.length > 0;
+    let html = '<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid #eee">' +
+        '<input type="checkbox" class="meas-checkbox" ' + (allSelected ? 'checked' : '') + ' onchange="selectAllMeas()" title="全选/取消全选">' +
+        '<span style="font-size:11px;color:#888">已选 ' + selectedMeas.size + '/' + meas.length + '</span>' +
+        '</div>';
+    html += meas.map(function(m) {
+        const checked = selectedMeas.has(m.id) ? 'checked' : '';
+        const showRef = !!m.showRef;
+        return '<div class="meas-item">' +
+            '<input type="checkbox" class="meas-checkbox" ' + checked + ' onchange="toggleMeasSelect(' + m.id + ')" title="勾选后批量改色">' +
+            '<div class="meas-info">' +
+                '<button class="meas-color" style="background:' + m.c + '" title="点击修改此条颜色" onclick="toggleMeasColorPanel(' + m.id + ',this)"></button>' +
+                '<span class="meas-val" style="color:' + m.c + '">' + formatVal(m.v) + '</span>' +
+            '</div>' +
+            '<button class="meas-ref' + (showRef ? ' has-ref' : '') + '" onclick="toggleRefLine(' + m.id + ')" title="' + (showRef ? '隐藏参考虚线' : '显示参考虚线') + '">' + (showRef ? '📌' : '📍') + '</button>' +
+            '<button class="meas-del" onclick="deleteMeas(' + m.id + ')" title="删除此条"></button>' +
+            '</div>' +
+            '<div class="meas-color-panel" id="colorPanel-' + m.id + '" style="display:none;padding:6px 0 6px 28px">' +
+                '<div style="display:flex;gap:4px;flex-wrap:wrap">' +
+                    PRESET_COLORS.map(function(p) {
+                        return '<button style="width:22px;height:22px;border:2px solid ' + (m.c === p.color ? '#0071e3' : '#eee') + ';border-radius:4px;cursor:pointer;background:' + p.color + '" title="' + p.name + '" onclick="setMeasColor(' + m.id + ',\'' + p.color + '\')"></button>';
+                    }).join('') +
+                '</div>' +
+            '</div>';
+    }).join('');
+    list.innerHTML = html;
+}
+
+// 切换测量线颜色面板
+function toggleMeasColorPanel(id, btn) {
+    const panel = document.getElementById('colorPanel-' + id);
+    if (!panel) return;
+    const isShow = panel.style.display === 'block';
+    // 收起其他面板
+    document.querySelectorAll('.meas-color-panel').forEach(function(p) { p.style.display = 'none'; });
+    if (!isShow) {
+        panel.style.display = 'block';
+    }
+}
+
+// ============ 多选颜色 ============
+function toggleMeasSelect(id) {
+    if (selectedMeas.has(id)) {
+        selectedMeas.delete(id);
+    } else {
+        selectedMeas.add(id);
+    }
+    updateList();
+}
+
+function selectAllMeas() {
+    if (selectedMeas.size === meas.length) {
+        selectedMeas.clear();
+    } else {
+        meas.forEach(function(m) { selectedMeas.add(m.id); });
+    }
+    updateList();
+}
+
+// 设置单条测量线颜色
+function setMeasColor(id, color) {
+    const m = meas.find(function(x) { return x.id === id; });
+    if (m) {
+        m.c = color;
+        updateList();
+        render();
+    }
+}
+
+function distToSegment(p, a, b) {
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const len2 = dx*dx + dy*dy;
+    if (len2 === 0) return Math.hypot(p.x - a.x, p.y - a.y);
+    let t = ((p.x - a.x)*dx + (p.y - a.y)*dy) / len2;
+    t = Math.max(0, Math.min(1, t));
+    return Math.hypot(p.x - (a.x + t*dx), p.y - (a.y + t*dy));
+}
+
+// 测量线命中检测：返回 {m, mode} 或 null
+function hitTestMeas(p) {
+    for (let i = meas.length - 1; i >= 0; i--) {
+        const m = meas[i];
+        const t = 14 / S;
+        if (Math.abs(p.x - m.s.x) < t && Math.abs(p.y - m.s.y) < t)
+            return { m: m, mode: 'move_s' };
+        if (Math.abs(p.x - m.e.x) < t && Math.abs(p.y - m.e.y) < t)
+            return { m: m, mode: 'move_e' };
+        if (distToSegment(p, m.s, m.e) < 10 / S)
+            return { m: m, mode: 'move_all' };
+    }
+    return null;
+}
+
+// ============ 绘制 ============
+function render() {
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    drawBg();
+    ctx.save();
+    ctx.translate(ox, oy);
+    ctx.scale(S, S);
+    if (img) ctx.drawImage(img, 0, 0);
+
+    if (drawPreview) {
+        ctx.strokeStyle = '#0071e3';
+        ctx.lineWidth = 2 / S;
+        ctx.setLineDash([8 / S, 6 / S]);
+        ctx.strokeRect(drawPreview.x, drawPreview.y, drawPreview.w, drawPreview.h);
+        ctx.setLineDash([]);
+        ctx.fillStyle = 'rgba(0,113,227,.08)';
+        ctx.fillRect(drawPreview.x, drawPreview.y, drawPreview.w, drawPreview.h);
+    }
+
+    if (rect) {
+        ctx.strokeStyle = '#0071e3';
+        ctx.lineWidth = 3 / S;
+        ctx.setLineDash([12 / S, 8 / S]);
+        ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
+        ctx.setLineDash([]);
+
+        if (selSizeName) {
+            ctx.fillStyle = 'rgba(0,113,227,.10)';
+            ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+            const cx = rect.x + rect.w / 2, cy = rect.y + rect.h / 2;
+            const maxFontSize = Math.min(rect.w * 0.08, rect.h * 0.15);
+            const fontSize = Math.min(labelFontSize, maxFontSize);
+            ctx.font = 'bold ' + Math.round(fontSize) + 'px -apple-system,BlinkMacSystemFont,sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = '#0071e3';
+            // 三行标注：尺寸名 / cm实际值 / 减0.25子标注
+            var lines = [selSizeName, selSizeCm];
+            if (selSizeSubLabel) lines.push(selSizeSubLabel);
+            var lineHeight = fontSize * 1.8;
+            var totalH = (lines.length - 1) * lineHeight;
+            var startY = cy - totalH / 2;
+            lines.forEach(function(line, i) {
+                ctx.fillText(line, cx, startY + i * lineHeight);
+            });
+        }
+
+        if (mode === 'edge') {
+            const handles = getEdgeHandles();
+            handles.forEach(function(h, i) {
+                ctx.fillStyle = edgeDrag === i ? '#ff9500' : '#34c759';
+                ctx.fillRect(h.x - 8 / S, h.y - 8 / S, 16 / S, 16 / S);
+                ctx.fillStyle = 'white';
+                ctx.font = (11 / S) + 'px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(['上','右','下','左'][i], h.x, h.y);
+            });
+        }
+    }
+
+    drawMeas();
+    drawRulerPreview();
+    ctx.restore();
+    updateCursor();
+}
+
+function updateCursor() {
+    if (mode !== 'measure' || drawingRuler || movingMeas) return;
+    const p = toImg({ clientX: mouseX, clientY: mouseY });
+    const hit = hitTestMeas(p);
+    cv.style.cursor = hit ? 'move' : 'crosshair';
+}
+
+function drawBg() {
+    const s = 20;
+    ctx.fillStyle = '#e8e8ec';
+    for (let y = 0; y < cv.height; y += s)
+        for (let x = 0; x < cv.width; x += s)
+            if (((x + y) / s) % 2 === 1) ctx.fillRect(x, y, s, s);
+}
+
+function getEdgeHandles() {
+    if (!rect) return [];
+    return [
+        { x: rect.x + rect.w/2, y: rect.y },
+        { x: rect.x + rect.w,   y: rect.y + rect.h/2 },
+        { x: rect.x + rect.w/2, y: rect.y + rect.h },
+        { x: rect.x,             y: rect.y + rect.h/2 }
+    ];
+}
+
+function drawMeas() {
+    meas.forEach(function(m) {
+        const isMoving = movingMeas && movingMeas.m.id === m.id;
+        ctx.strokeStyle = m.c;
+        ctx.lineWidth = isMoving ? 5 / S : 3 / S;
+        if (isMoving) { ctx.shadowColor = m.c; ctx.shadowBlur = 8 / S; }
+        ctx.beginPath();
+        ctx.moveTo(m.s.x, m.s.y);
+        ctx.lineTo(m.e.x, m.e.y);
+        ctx.stroke();
+        ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
+
+        [m.s, m.e].forEach(function(p) {
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, 5 / S, 0, Math.PI * 2);
+            ctx.fillStyle = m.c;
+            ctx.fill();
+        });
+
+        drawMeasLabel(m);
+
+        // 移动时绘制两端虚线连接到起始位置
+        if (isMoving && movingMeas.origS && movingMeas.origE) {
+            ctx.save();
+            ctx.strokeStyle = m.c;
+            ctx.lineWidth = 1.5 / S;
+            ctx.setLineDash([4 / S, 4 / S]);
+            ctx.globalAlpha = 0.5;
+
+            // 起点虚线：当前位置 → 起始位置
+            ctx.beginPath();
+            ctx.moveTo(m.s.x, m.s.y);
+            ctx.lineTo(movingMeas.origS.x, movingMeas.origS.y);
+            ctx.stroke();
+
+            // 终点虚线：当前位置 → 起始位置
+            ctx.beginPath();
+            ctx.moveTo(m.e.x, m.e.y);
+            ctx.lineTo(movingMeas.origE.x, movingMeas.origE.y);
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        // 永久参考虚线：showRef 为 true 时绘制（连接当前位置 ↔ 初始位置）
+        if (m.showRef && m.refS && m.refE) {
+            ctx.save();
+            ctx.strokeStyle = m.c;
+            ctx.lineWidth = 1.2 / S;
+            ctx.setLineDash([6 / S, 4 / S]);
+            ctx.globalAlpha = 0.5;
+
+            // 起点虚线：当前位置 → 初始位置
+            ctx.beginPath();
+            ctx.moveTo(m.s.x, m.s.y);
+            ctx.lineTo(m.refS.x, m.refS.y);
+            ctx.stroke();
+
+            // 终点虚线：当前位置 → 初始位置
+            ctx.beginPath();
+            ctx.moveTo(m.e.x, m.e.y);
+            ctx.lineTo(m.refE.x, m.refE.y);
+            ctx.stroke();
+
+            // 初始位置小圆点标记
+            [{ p: m.refS, label: '初' }, { p: m.refE, label: '初' }].forEach(function(o) {
+                ctx.beginPath();
+                ctx.arc(o.p.x, o.p.y, 3 / S, 0, Math.PI * 2);
+                ctx.fillStyle = m.c;
+                ctx.globalAlpha = 0.6;
+                ctx.fill();
+            });
+
+            ctx.restore();
+        }
+    });
+}
+
+function drawMeasLabel(m) {
+    const len = Math.hypot(m.e.x - m.s.x, m.e.y - m.s.y);
+    const txt = formatVal(m.v);
+    // labelFontSize 现为图片像素单位，直接使用
+    const fontSize = labelFontSize;
+    ctx.font = 'bold ' + fontSize + 'px sans-serif';
+
+    const angle = Math.atan2(m.e.y - m.s.y, m.e.x - m.s.x);
+
+    // 动态计算背景尺寸，确保字体不溢出
+    const textW = ctx.measureText(txt).width;
+    const padX = Math.max(8, fontSize * 0.5);
+    const padY = Math.max(4, fontSize * 0.35);
+    const bgH = Math.max(20, fontSize + 8);
+
+    // 自动反色
+    const textColor = getContrastColor(m.c);
+
+    if (len < 50) {
+        const px = Math.cos(angle + Math.PI/2);
+        const py = Math.sin(angle + Math.PI/2);
+        const d = 20 + fontSize * 0.5;
+        const lx = (m.s.x + m.e.x)/2 + px * d;
+        const ly = (m.s.y + m.e.y)/2 + py * d;
+
+        ctx.strokeStyle = m.c;
+        ctx.lineWidth = 1.5 / S;
+        ctx.setLineDash([3 / S, 3 / S]);
+        ctx.beginPath();
+        ctx.moveTo(lx, ly);
+        ctx.lineTo((m.s.x + m.e.x)/2, (m.s.y + m.e.y)/2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        const tw = textW + padX * 2;
+        ctx.fillStyle = m.c;
+        const rr = Math.min(4, bgH / 3);
+        const bx = lx - tw/2, by = ly - bgH/2;
+        ctx.beginPath();
+        ctx.moveTo(bx + rr, by);
+        ctx.lineTo(bx + tw - rr, by);
+        ctx.quadraticCurveTo(bx + tw, by, bx + tw, by + rr);
+        ctx.lineTo(bx + tw, by + bgH - rr);
+        ctx.quadraticCurveTo(bx + tw, by + bgH, bx + tw - rr, by + bgH);
+        ctx.lineTo(bx + rr, by + bgH);
+        ctx.quadraticCurveTo(bx, by + bgH, bx, by + bgH - rr);
+        ctx.lineTo(bx, by + rr);
+        ctx.quadraticCurveTo(bx, by, bx + rr, by);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = textColor;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(txt, lx, ly + 1);
+    } else {
+        const mx = (m.s.x + m.e.x)/2;
+        const my = (m.s.y + m.e.y)/2;
+        const offY = -16 - fontSize * 0.2;
+        const tx = mx + Math.cos(angle + Math.PI/2) * offY;
+        const ty = my + Math.sin(angle + Math.PI/2) * offY;
+
+        const tw = textW + padX * 2;
+        ctx.fillStyle = m.c;
+        ctx.fillRect(tx - tw/2, ty - bgH/2, tw, bgH);
+
+        ctx.fillStyle = textColor;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(txt, tx, ty + 1);
+    }
+}
+
+// 根据背景色亮度自动计算反色（黑/白）
+function getContrastColor(bgColor) {
+    let r, g, b;
+    if (bgColor.charAt(0) === '#') {
+        r = parseInt(bgColor.substr(1, 2), 16);
+        g = parseInt(bgColor.substr(3, 2), 16);
+        b = parseInt(bgColor.substr(5, 2), 16);
+    } else {
+        return '#ffffff';
+    }
+    const luminance = (r * 299 + g * 587 + b * 114) / 1000;
+    return luminance > 128 ? '#000000' : '#ffffff';
+}
+
+// rgb() 颜色字符串转 hex（用于预设按钮高亮比对）
+function rgbToHex(rgbStr) {
+    if (!rgbStr || rgbStr.charAt(0) === '#') return (rgbStr || '').toLowerCase();
+    const m = rgbStr.match(/\d+/g);
+    if (!m || m.length < 3) return rgbStr;
+    return '#' + [m[0], m[1], m[2]].map(function(v) {
+        return ('0' + parseInt(v).toString(16)).slice(-2);
+    }).join('');
+}
+
+function drawRulerPreview() {
+    if (!drawingRuler || !rulerS) return;
+    ctx.strokeStyle = '#ff3b30';
+    ctx.lineWidth = 2 / S;
+    ctx.setLineDash([6 / S, 4 / S]);
+    ctx.beginPath();
+    ctx.moveTo(rulerS.x, rulerS.y);
+
+    let ex, ey;
+    if (rulerE) {
+        ex = rulerE.x; ey = rulerE.y;
+    } else {
+        const pos = toImg({ clientX: mouseX, clientY: mouseY });
+        ex = pos.x; ey = pos.y;
+        if (shiftDown && rulerS) {
+            if (Math.abs(ex - rulerS.x) > Math.abs(ey - rulerS.y)) {
+                ey = rulerS.y;
+            } else {
+                ex = rulerS.x;
+            }
+        }
+    }
+
+    ctx.lineTo(ex, ey);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    if (ppm > 0) {
+        const d = Math.hypot(ex - rulerS.x, ey - rulerS.y);
+        ctx.fillStyle = 'rgba(0,0,0,.7)';
+        ctx.font = (14 / S) + 'px sans-serif';
+        ctx.fillText(formatVal(d / ppm), (rulerS.x + ex)/2, (rulerS.y + ey)/2 - 12 / S);
+    }
+}
+
+// ============ 事件绑定 ============
+function bindEvt() {
+    cv.addEventListener('mousedown', onDown);
+    cv.addEventListener('mousemove', onMove);
+    cv.addEventListener('mouseup',   onUp);
+    cv.addEventListener('wheel',     onWheel, { passive: false });
+    cv.addEventListener('contextmenu', e => e.preventDefault());
+
+    document.addEventListener('keydown', function(e) {
+        if (e.ctrlKey && e.key === 'z') { e.preventDefault(); undo(); }
+        if (e.key === 'Shift') {
+            shiftDown = true;
+            if (drawingRuler && rulerS) {
+                const pos = toImg({ clientX: mouseX, clientY: mouseY });
+                if (Math.abs(pos.x - rulerS.x) > Math.abs(pos.y - rulerS.y)) {
+                    rulerE = { x: pos.x, y: rulerS.y };
+                } else {
+                    rulerE = { x: rulerS.x, y: pos.y };
+                }
+                render();
+            }
+            if (movingMeas) { render(); }
+        }
+    });
+    document.addEventListener('keyup', function(e) {
+        if (e.key === 'Shift') {
+            shiftDown = false;
+            if (drawingRuler && rulerS) {
+                rulerE = toImg({ clientX: mouseX, clientY: mouseY });
+                render();
+            }
+            if (movingMeas) { render(); }
+        }
+    });
+
+    cv.addEventListener('dragover', e => e.preventDefault());
+    cv.addEventListener('drop', function(e) {
+        e.preventDefault();
+        if (e.dataTransfer.files[0]) onFile(e.dataTransfer.files[0]);
+    });
+}
+
+// ============ 鼠标事件 ============
+let movingMeas = null;
+
+function onDown(e) {
+    shiftDown = e.shiftKey;
+    if (e.button === 2 || (e.button === 0 && e.altKey)) {
+        isPan = true; panSX = e.clientX - ox; panSY = e.clientY - oy;
+        cv.style.cursor = 'grabbing'; return;
+    }
+    if (e.button !== 0) return;
+    const p = toImg(e);
+
+    if (mode === 'measure' && !drawingRuler) {
+        const hit = hitTestMeas(p);
+        if (hit) {
+            // origS/origE 用最初始位置（refS/refE），供 Shift 约束参考
+            const initS = hit.m.refS || { x: hit.m.s.x, y: hit.m.s.y };
+            const initE = hit.m.refE || { x: hit.m.e.x, y: hit.m.e.y };
+            if (hit.mode === 'move_s') {
+                movingMeas = {
+                    m: hit.m, mode: 'move_s',
+                    ox: p.x - hit.m.s.x, oy: p.y - hit.m.s.y,
+                    origS: { x: initS.x, y: initS.y },
+                    origE: { x: initE.x, y: initE.y }
+                };
+            } else if (hit.mode === 'move_e') {
+                movingMeas = {
+                    m: hit.m, mode: 'move_e',
+                    ox: p.x - hit.m.e.x, oy: p.y - hit.m.e.y,
+                    origS: { x: initS.x, y: initS.y },
+                    origE: { x: initE.x, y: initE.y }
+                };
+            } else {
+                movingMeas = {
+                    m: hit.m, mode: 'move_all',
+                    ox: p.x - hit.m.s.x, oy: p.y - hit.m.s.y,
+                    dw: hit.m.e.x - hit.m.s.x,
+                    dh: hit.m.e.y - hit.m.s.y,
+                    origS: { x: initS.x, y: initS.y },
+                    origE: { x: initE.x, y: initE.y }
+                };
+            }
+            cv.style.cursor = 'move';
+            render();
+            return;
+        }
+    }
+
+    if (mode === 'draw' && !rect) {
+        drawStart = p; return;
+    }
+    if (mode === 'edge') {
+        const hi = hitEdgeHandle(p);
+        if (hi >= 0) { edgeDrag = hi; return; }
+    }
+    if (mode === 'measure') {
+        if (!ppm) { alert('请先完成内框标定并选择型号'); return; }
+        rulerS = p; drawingRuler = true;
+    }
+}
+
+function onMove(e) {
+    mouseX = e.clientX; mouseY = e.clientY;
+    shiftDown = e.shiftKey;
+    if (isPan) { ox = e.clientX - panSX; oy = e.clientY - panSY; render(); return; }
+
+    if (movingMeas) {
+        const p = toImg(e);
+        if (movingMeas.mode === 'move_s') {
+            let nx = p.x - movingMeas.ox;
+            let ny = p.y - movingMeas.oy;
+            if (shiftDown) {
+                // Shift 约束：只许水平或垂直移动起点
+                const dx = nx - movingMeas.origS.x;
+                const dy = ny - movingMeas.origS.y;
+                if (Math.abs(dx) > Math.abs(dy)) {
+                    ny = movingMeas.origS.y;
+                } else {
+                    nx = movingMeas.origS.x;
+                }
+            }
+            movingMeas.m.s.x = nx;
+            movingMeas.m.s.y = ny;
+        } else if (movingMeas.mode === 'move_e') {
+            let nx = p.x - movingMeas.ox;
+            let ny = p.y - movingMeas.oy;
+            if (shiftDown) {
+                const dx = nx - movingMeas.origE.x;
+                const dy = ny - movingMeas.origE.y;
+                if (Math.abs(dx) > Math.abs(dy)) {
+                    ny = movingMeas.origE.y;
+                } else {
+                    nx = movingMeas.origE.x;
+                }
+            }
+            movingMeas.m.e.x = nx;
+            movingMeas.m.e.y = ny;
+        } else {
+            // move_all：移动整条线
+            let nx = p.x - movingMeas.ox;
+            let ny = p.y - movingMeas.oy;
+            if (shiftDown) {
+                // Shift 约束：整条线只许水平或垂直移动
+                const dx = nx - movingMeas.origS.x;
+                const dy = ny - movingMeas.origS.y;
+                if (Math.abs(dx) > Math.abs(dy)) {
+                    ny = movingMeas.origS.y;
+                } else {
+                    nx = movingMeas.origS.x;
+                }
+            }
+            movingMeas.m.s.x = nx;
+            movingMeas.m.s.y = ny;
+            movingMeas.m.e.x = nx + movingMeas.dw;
+            movingMeas.m.e.y = ny + movingMeas.dh;
+        }
+        render();
+        return;
+    }
+
+    if (mode === 'draw' && drawStart && !rect) {
+        const p = toImg(e);
+        drawPreview = {
+            x: Math.min(drawStart.x, p.x),
+            y: Math.min(drawStart.y, p.y),
+            w: Math.abs(p.x - drawStart.x),
+            h: Math.abs(p.y - drawStart.y)
+        };
+        render();
+        return;
+    }
+
+    if (edgeDrag >= 0) {
+        adjustEdge(edgeDrag, toImg(e));
+        render(); return;
+    }
+
+    if (drawingRuler) {
+        let pos = toImg(e);
+        if (e.shiftKey && rulerS) {
+            const dx = pos.x - rulerS.x, dy = pos.y - rulerS.y;
+            if (Math.abs(dx) > Math.abs(dy)) { pos.y = rulerS.y; }
+            else { pos.x = rulerS.x; }
+        }
+        rulerE = pos;
+        if (e.shiftKey && rulerS && ppm) {
+            const dx = rulerE.x - rulerS.x, dy = rulerE.y - rulerS.y;
+            const dir = Math.abs(dx) > Math.abs(dy) ? '水平 ↔' : '垂直 ↕';
+            setStatus('📏 Shift 约束：' + dir + '　|　' + formatVal(Math.hypot(dx, dy) / ppm));
+        }
+        render(); return;
+    }
+
+    if (mode === 'measure' && !drawingRuler && !movingMeas) {
+        updateCursor();
+    }
+}
+
+function onUp(e) {
+    if (isPan) { isPan = false; cv.style.cursor = ''; return; }
+
+    if (movingMeas) {
+        // 移动结束后，自动开启参考虚线显示
+        movingMeas.m.showRef = true;
+        movingMeas = null;
+        render();
+        setStatus('已移动测量线（参考虚线已显示，可点击📌隐藏）');
+        return;
+    }
+
+    if (mode === 'draw' && drawStart && !rect) {
+        const p = toImg(e);
+        const rx = Math.min(drawStart.x, p.x);
+        const ry = Math.min(drawStart.y, p.y);
+        const rw = Math.abs(p.x - drawStart.x);
+        const rh = Math.abs(p.y - drawStart.y);
+        drawStart = null;
+        drawPreview = null;
+        if (rw > 10 && rh > 10) {
+            rect = { x: rx, y: ry, w: rw, h: rh };
+            setMode('edge');
+            showHint('拖拽绿色方块调整四边，确认后点击"测量"');
+            setStatus('内框已绘制 | 拖拽绿块调整四边 | 完成后点"测量"');
+        }
+        render(); return;
+    }
+
+    if (edgeDrag >= 0) { edgeDrag = -1; if (ppm > 0) recalc(); render(); return; }
+    if (drawingRuler && rulerS) {
+        // 若 onMove 未触发（极快拖拽），用当前鼠标位置补上 rulerE
+        if (!rulerE) rulerE = toImg({ clientX: e.clientX, clientY: e.clientY });
+        finishRuler(); return;
+    }
+    if (drawingRuler) { drawingRuler = false; rulerS = null; rulerE = null; render(); }
+}
+
+function adjustEdge(idx, p) {
+    if (!rect) return;
+    switch(idx) {
+        case 0: rect.y = p.y; break;
+        case 1: rect.w = p.x - rect.x; break;
+        case 2: rect.h = p.y - rect.y; break;
+        case 3: rect.x = p.x; rect.w = (rect.x + rect.w) - p.x; break;
+    }
+    if (rect.w < 5) rect.w = 5;
+    if (rect.h < 5) rect.h = 5;
+}
+
+function hitEdgeHandle(p) {
+    if (!rect || mode !== 'edge') return -1;
+    const handles = getEdgeHandles();
+    const t = 16 / S;
+    for (let i = 0; i < handles.length; i++) {
+        if (Math.abs(p.x - handles[i].x) < t && Math.abs(p.y - handles[i].y) < t) return i;
+    }
+    return -1;
+}
+
+function onWheel(e) {
+    e.preventDefault();
+    const d = e.deltaY > 0 ? 0.92 : 1.08;
+    const r = cv.getBoundingClientRect();
+    const mx = e.clientX - r.left, my = e.clientY - r.top;
+    ox = mx - (mx - ox) * d;
+    oy = my - (my - oy) * d;
+    S *= d;
+    updateZoom();
+    render();
+}
+
+// ============ 模式切换 ============
+function setMode(m) {
+    mode = m;
+    ['btnDraw','btnEdge','btnMeasure'].forEach(function(id) {
+        document.getElementById(id).classList.toggle('active', false);
+    });
+    if (m === 'draw') {
+        document.getElementById('btnDraw').classList.toggle('active', true);
+        cv.style.cursor = 'crosshair';
+    } else if (m === 'edge') {
+        document.getElementById('btnEdge').classList.toggle('active', true);
+        cv.style.cursor = 'pointer';
+    } else if (m === 'measure') {
+        document.getElementById('btnMeasure').classList.toggle('active', true);
+        cv.style.cursor = 'crosshair';
+        if (rect && !ppm) showSizeModal();
+    }
+    render();
+}
+
+// ============ 单位切换 ============
+function toggleUnit() {
+    unit = unit === 'cm' ? 'in' : 'cm';
+    document.getElementById('btnUnit').textContent = unit;
+    recalc();
+    updateList();
+    render();
+}
+
+function formatVal(cmVal) {
+    if (unit === 'in') return (cmVal / 2.54).toFixed(2) + ' ' + unit;
+    return cmVal.toFixed(1) + ' ' + unit;
+}
+
+// ============ 完成测量线 ============
+function finishRuler() {
+    if (!rulerS || !rulerE || !ppm) return;
+    const d = Math.hypot(rulerE.x - rulerS.x, rulerE.y - rulerS.y);
+    if (d < 5) { drawingRuler = false; rulerS = null; rulerE = null; render(); return; }
+    const m = {
+        id: nextId++,
+        s: { x: rulerS.x, y: rulerS.y },
+        e: { x: rulerE.x, y: rulerE.y },
+        v: d / ppm,
+        c: COLOR_CYCLE[(nextId - 1) % COLOR_CYCLE.length],
+        // 保存最初始位置，用于参考虚线
+        refS: { x: rulerS.x, y: rulerS.y },
+        refE: { x: rulerE.x, y: rulerE.y },
+        showRef: false
+    };
+    undoStack.push({ t: 'add', m: m });
+    meas.push(m);
+    updateList();
+    drawingRuler = false; rulerS = null; rulerE = null;
+    setStatus('已添加: ' + formatVal(m.v));
+    render();
+}
+
+// ============ 尺寸选择 ============
+function showSizeModal() {
+    const modal = document.getElementById('sizeModal');
+    const list = document.getElementById('sizeList');
+    if (!rect) return;
+    const ratio = rect.w / rect.h;
+    const scored = SIZE_DB.map(function(s) {
+        return { s: s, diff: Math.abs(s.w / s.h - ratio) };
+    });
+    scored.sort(function(a, b) { return a.diff - b.diff; });
+    const top2Threshold = scored.length > 2 ? scored[1].diff : scored[0].diff;
+    list.innerHTML = '';
+    SIZE_DB.forEach(function(s) {
+        const sr = s.w / s.h;
+        const diff = Math.abs(sr - ratio);
+        const isTop = diff <= top2Threshold;
+        const div = document.createElement('div');
+        div.className = 'size-option';
+        div.innerHTML = '<b>' + s.n + '</b>　' + s.w + '×' + s.h + 'cm' + (isTop ? '　✓ 推荐' : '');
+        div.onclick = function() { selectSize(s); };
+        list.appendChild(div);
+    });
+    modal.classList.add('show');
+}
+
+function closeSizeModal() {
+    document.getElementById('sizeModal').classList.remove('show');
+}
+
+function selectSize(s) {
+    if (!rect) return;
+    ppm = ((rect.w / s.w) + (rect.h / s.h)) / 2;
+    selSizeName = s.n;
+    selSizeCm = '(' + s.w + '×' + s.h + 'cm)';
+    // 计算减0.25标注：型号名两个数字各减0.25，加in单位
+    const parts = s.n.split('×');
+    const sw = parseFloat(parts[0]) - 0.25;
+    const sh = parseFloat(parts[1]) - 0.25;
+    selSizeSubLabel = '(' + sw.toFixed(2) + '×' + sh.toFixed(2) + 'in)';
+    closeSizeModal();
+    setStatus('已标定: ' + selSizeName + ' ' + selSizeCm + ' | 1cm ≈ ' + ppm.toFixed(1) + 'px');
+    render();
+}
+
+// ============ 自定义尺寸 ============
+function selectCustomSize() {
+    const w = parseFloat(document.getElementById('customW').value);
+    const h = parseFloat(document.getElementById('customH').value);
+    if (!w || !h || w <= 0 || h <= 0) {
+        alert('请输入有效的宽和高（正数）'); return;
+    }
+    if (!rect) return;
+    ppm = ((rect.w / w) + (rect.h / h)) / 2;
+    selSizeName = '自定义';
+    selSizeCm = '(' + w + '×' + h + 'cm)';
+    selSizeSubLabel = '';
+    closeSizeModal();
+    setStatus('已标定（自定义）: ' + selSizeName + ' ' + selSizeCm + ' | 1cm ≈ ' + ppm.toFixed(1) + 'px');
+    render();
+}
+
+// ============ 管理 ============
+function deleteMeas(id) {
+    const idx = meas.findIndex(m => m.id === id);
+    if (idx < 0) return;
+    selectedMeas.delete(id);
+    undoStack.push({ t: 'del', m: meas[idx], i: idx });
+    meas.splice(idx, 1);
+    updateList(); render();
+}
+
+// 切换参考虚线显示/隐藏（不删除数据）
+function toggleRefLine(id) {
+    const m = meas.find(x => x.id === id);
+    if (!m) return;
+    // 如果没有初始位置记录（旧数据），用当前位置初始化
+    if (!m.refS || !m.refE) {
+        m.refS = { x: m.s.x, y: m.s.y };
+        m.refE = { x: m.e.x, y: m.e.y };
+    }
+    m.showRef = !m.showRef;
+    if (m.showRef) {
+        setStatus('已显示参考虚线（初始位置 ↔ 当前位置）');
+    } else {
+        setStatus('已隐藏参考虚线');
+    }
+    updateList(); render();
+}
+
+function undo() {
+    if (!undoStack.length) return;
+    const a = undoStack.pop();
+    if (a.t === 'add') meas = meas.filter(m => m.id !== a.m.id);
+    else if (a.t === 'del') meas.splice(a.i, 0, a.m);
+    updateList(); render(); setStatus('已撤销');
+}
+
+function clearAll() {
+    meas = []; nextId = 1; undoStack = [];
+    selectedMeas.clear();
+    updateList(); render();
+}
+
+function recalc() {
+    if (!ppm || !rect) return;
+    meas.forEach(function(m) {
+        m.v = Math.hypot(m.e.x - m.s.x, m.e.y - m.s.y) / ppm;
+    });
+    updateList();
+}
+
+// ============ 导出 ============
+function doExport() {
+    if (!img) { alert('请先上传图片'); return; }
+    const ec = document.createElement('canvas');
+    ec.width = img.width; ec.height = img.height;
+    const ex = ec.getContext('2d');
+    ex.drawImage(img, 0, 0);
+
+    if (rect) {
+        ex.strokeStyle = '#0071e3'; ex.lineWidth = 3; ex.setLineDash([12, 8]);
+        ex.strokeRect(rect.x, rect.y, rect.w, rect.h);
+        ex.setLineDash([]);
+
+        if (selSizeName) {
+            ex.fillStyle = 'rgba(0,113,227,.10)';
+            ex.fillRect(rect.x, rect.y, rect.w, rect.h);
+            const cx = rect.x + rect.w/2, cy = rect.y + rect.h/2;
+            const maxFontSize = Math.min(rect.w * 0.08, rect.h * 0.15);
+            const fontSize = Math.min(labelFontSize, maxFontSize);
+            ex.font = 'bold ' + Math.round(fontSize) + 'px -apple-system,BlinkMacSystemFont,sans-serif';
+            ex.textAlign = 'center'; ex.textBaseline = 'middle';
+            ex.fillStyle = '#0071e3';
+            // 三行标注：尺寸名 / cm实际值 / 减0.25子标注
+            const lines = [selSizeName, selSizeCm];
+            if (selSizeSubLabel) lines.push(selSizeSubLabel);
+            const lineHeight = fontSize * 1.8;
+            const totalH = (lines.length - 1) * lineHeight;
+            const startY = cy - totalH / 2;
+            lines.forEach(function(line, i) {
+                ex.fillText(line, cx, startY + i * lineHeight);
+            });
+        }
+    }
+
+    meas.forEach(function(m) {
+        ex.strokeStyle = m.c; ex.lineWidth = 3;
+        ex.beginPath(); ex.moveTo(m.s.x, m.s.y); ex.lineTo(m.e.x, m.e.y); ex.stroke();
+
+        [m.s, m.e].forEach(function(p) {
+            ex.beginPath(); ex.arc(p.x, p.y, 5, 0, Math.PI * 2); ex.fillStyle = m.c; ex.fill();
+        });
+        drawExportLabel(ex, m);
+
+        // 导出时绘制参考虚线（仅 showRef 为 true 时）
+        if (m.showRef && m.refS && m.refE) {
+            ex.save();
+            ex.strokeStyle = m.c; ex.lineWidth = 1.5; ex.setLineDash([6, 4]); ex.globalAlpha = 0.5;
+            ex.beginPath(); ex.moveTo(m.s.x, m.s.y); ex.lineTo(m.refS.x, m.refS.y); ex.stroke();
+            ex.beginPath(); ex.moveTo(m.e.x, m.e.y); ex.lineTo(m.refE.x, m.refE.y); ex.stroke();
+            ex.restore();
+        }
+    });
+
+    ec.toBlob(function(blob) {
+        if (!blob) return;
+        if (navigator.clipboard && navigator.clipboard.write) {
+            navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]).then(function() {
+                alert('已复制到剪贴板！可 Ctrl+V 粘贴');
+            }).catch(function() { downloadBlob(blob); });
+        } else {
+            downloadBlob(blob);
+        }
+    }, 'image/png');
+}
+
+function drawExportLabel(ex, m) {
+    const len = Math.hypot(m.e.x - m.s.x, m.e.y - m.s.y);
+    const txt = formatVal(m.v);
+    // 导出：labelFontSize 直接作为图片像素单位使用
+    const fontSize = labelFontSize;
+    ex.font = 'bold ' + fontSize + 'px sans-serif';
+
+    const textW = ex.measureText(txt).width;
+    const padX = Math.max(8, fontSize * 0.5);
+    const padY = Math.max(4, fontSize * 0.35);
+    const bgH = Math.max(20, fontSize + 8);
+
+    // 自动反色
+    const textColor = getContrastColor(m.c);
+
+    if (len < 50) {
+        const angle = Math.atan2(m.e.y - m.s.y, m.e.x - m.s.x);
+        const px = Math.cos(angle + Math.PI/2);
+        const py = Math.sin(angle + Math.PI/2);
+        const d = 20 + fontSize * 0.5;
+        const lx = (m.s.x + m.e.x)/2 + px * d;
+        const ly = (m.s.y + m.e.y)/2 + py * d;
+
+        ex.strokeStyle = m.c; ex.lineWidth = 1.5; ex.setLineDash([3, 3]);
+        ex.beginPath(); ex.moveTo(lx, ly); ex.lineTo((m.s.x + m.e.x)/2, (m.s.y + m.e.y)/2); ex.stroke();
+        ex.setLineDash([]);
+
+        const tw = textW + padX * 2;
+        ex.fillStyle = m.c;
+        ex.fillRect(lx - tw/2, ly - bgH/2, tw, bgH);
+
+        ex.fillStyle = textColor; ex.textAlign = 'center'; ex.textBaseline = 'middle';
+        ex.fillText(txt, lx, ly + 1);
+    } else {
+        const angle = Math.atan2(m.e.y - m.s.y, m.e.x - m.s.x);
+        const mx = (m.s.x + m.e.x)/2, my = (m.s.y + m.e.y)/2;
+        const offY = -16 - fontSize * 0.2;
+        const tx = mx + Math.cos(angle + Math.PI/2) * offY;
+        const ty = my + Math.sin(angle + Math.PI/2) * offY;
+        const tw = textW + padX * 2;
+        ex.fillStyle = m.c; ex.fillRect(tx - tw/2, ty - bgH/2, tw, bgH);
+        ex.fillStyle = textColor; ex.textAlign = 'center'; ex.textBaseline = 'middle';
+        ex.fillText(txt, tx, ty + 1);
+    }
+}
+
+function downloadBlob(blob) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = '测量结果.png'; a.click();
+    URL.revokeObjectURL(url);
+    alert('已下载图片');
+}
+
+// ============ UI 更新 ============
+function setStatus(msg) {
+    document.getElementById('statusText').textContent = msg;
+}
+
+function showHint(msg) {
+    const h = document.getElementById('stepHint');
+    h.textContent = msg;
+    h.style.display = 'block';
+    clearTimeout(showHint._t);
+    showHint._t = setTimeout(function() { h.style.display = 'none'; }, 5000);
+}
+
+function updateZoom() {
+    document.getElementById('zoomText').textContent = Math.round(S * 100) + '%';
+}
+
+// ============ 启动 ============
+window.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>

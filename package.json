@@ -1,0 +1,40 @@
+{
+  "name": "frame-measurement",
+  "version": "1.4.0",
+  "description": "相框测量工具",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^27.0.0",
+    "electron-builder": "^24.9.0"
+  },
+  "build": {
+    "appId": "com.framemeasure.app",
+    "productName": "相框测量工具",
+    "directories": {
+      "output": "dist"
+    },
+    "mac": {
+      "target": "dmg",
+      "category": "utilities",
+      "sign": false,
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false
+    },
+    "dmg": {
+      "title": "相框测量工具"
+    },
+    "win": {
+      "target": "dir",
+      "sign": false
+    }
+  },
+  "dependencies": {
+    "asar": "^3.2.0",
+    "png-to-ico": "^3.0.1",
+    "rcedit": "^5.0.2"
+  }
+}
