@@ -28,7 +28,7 @@
       "sign": false,
       "hardenedRuntime": false,
       "gatekeeperAssess": false,
-      "icon": "icon.ico"
+      "icon": "icon.png"
     },
     "dmg": {
       "title": "Frame Measurement Tool",
