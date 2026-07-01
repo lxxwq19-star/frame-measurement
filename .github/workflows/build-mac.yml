@@ -5,6 +5,11 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build-mac:
+    runs-on: macos-latest
 
 jobs:
   build-mac:
@@ -27,8 +32,10 @@ jobs:
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
-      - name: Upload DMG artifact
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: frame-measurement-mac
           path: dist/*.dmg
+          if-no-files-found: warn        # ← 新增这行
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # ← 新增这个env块
