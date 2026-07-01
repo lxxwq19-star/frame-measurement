@@ -6,9 +6,6 @@ on:
       - 'v*'
   workflow_dispatch:
 
-permissions:
-  write: contents
-
 jobs:
   build-mac:
     runs-on: macos-latest
@@ -24,9 +21,4 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm install
-
-      - name: Build Mac app
-        run: npm run build -- --mac
-        env:
-          CSC_IDENTITY_AUTO
+        run: npm
