@@ -7,4 +7,4 @@ dist/
 相框测量工具_v*/
 使用教程.html
 clipboard-*.png
-package-lock.json
+# keep package-lock.json for CI build
