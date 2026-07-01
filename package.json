@@ -13,19 +13,26 @@
   },
   "build": {
     "appId": "com.framemeasure.app",
-    "productName": "相框测量工具",
+    "productName": "FrameMeasurement",
     "directories": {
       "output": "dist"
     },
     "mac": {
-      "target": "dmg",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["arm64", "x64"]
+        }
+      ],
       "category": "utilities",
       "sign": false,
       "hardenedRuntime": false,
-      "gatekeeperAssess": false
+      "gatekeeperAssess": false,
+      "icon": "icon.ico"
     },
     "dmg": {
-      "title": "相框测量工具"
+      "title": "Frame Measurement Tool",
+      "format": "ULFO"
     },
     "win": {
       "target": "dir",
