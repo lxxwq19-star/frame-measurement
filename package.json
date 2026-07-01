@@ -30,10 +30,6 @@
       "gatekeeperAssess": false,
       "icon": "icon.png"
     },
-    "dmg": {
-      "title": "Frame Measurement Tool",
-      "format": "ULFO"
-    },
     "win": {
       "target": "dir",
       "sign": false
