@@ -21,4 +21,18 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm
+        run: |
+          rm -f package-lock.json
+          npm install 2>&1
+
+      - name: Build Mac app
+        run: npm run build -- --mac
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      - name: Upload DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: mac-dmg
+          path: dist/*.dmg
+          retention-days: 30
